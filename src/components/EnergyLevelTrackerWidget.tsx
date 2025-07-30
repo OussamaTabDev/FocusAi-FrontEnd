@@ -57,7 +57,8 @@ const EnergyLevelTrackerWidget = () => {
     : 0;
 
   return (
-    <Card className="p-4 h-full">
+    <div className="h-full">
+  <Card className="p-4 ">
       <div className="flex items-center space-x-2 mb-4">
         <Battery className="h-5 w-5 text-primary" />
         <h3 className="font-semibold">Energy Level</h3>
@@ -116,6 +117,7 @@ const EnergyLevelTrackerWidget = () => {
         </div>
       </div>
     </Card>
+    </div>
   );
 };
 
