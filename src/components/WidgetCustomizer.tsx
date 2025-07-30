@@ -67,10 +67,10 @@ const WidgetCustomizer: React.FC<WidgetCustomizerProps> = ({
           <DialogTitle>Customize Your Dashboard</DialogTitle>
         </DialogHeader>
         
-        <div className="space-y-6">
+        <div className="space-y-6 ">
           <div>
             <h3 className="font-semibold mb-3">Active Widgets</h3>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-3 gap-2">
               {activeWidgets.map((widget) => (
                 <div key={widget.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex items-center space-x-2">
@@ -95,25 +95,34 @@ const WidgetCustomizer: React.FC<WidgetCustomizerProps> = ({
           
           <div>
             <h3 className="font-semibold mb-3">Available Widgets</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {availableWidgets.map((widget) => (
-                <div key={widget.type} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    {getWidgetIcon(widget.type)}
-                    <span className="text-sm">{widget.title}</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onAddWidget(widget)}
-                    disabled={isWidgetActive(widget.type)}
-                    className="text-green-500 hover:text-green-700 disabled:text-muted-foreground"
+            <div className="grid grid-cols-3 gap-2">
+              {availableWidgets
+                // hide anything whose type is already in activeWidgets
+                .filter(w => !activeWidgets.some(a => a.type === w.type))
+                .map((widget) => (
+                  <div
+                    key={widget.type}
+                    className="flex items-center justify-between p-3 border rounded-lg"
                   >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              ))}
+                    <div className="flex items-center space-x-2">
+                      {getWidgetIcon(widget.type)}
+                      <span className="text-sm">{widget.title}</span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => onAddWidget(widget)}
+                      className="text-green-500 hover:text-green-700"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
             </div>
+            {availableWidgets.filter(w => !activeWidgets.some(a => a.type === w.type))
+                .length === 0 && (
+              <p className="text-muted-foreground text-sm">All widgets are active</p>
+            )}
           </div>
         </div>
       </DialogContent>
