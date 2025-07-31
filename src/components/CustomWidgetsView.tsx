@@ -51,11 +51,11 @@ const CustomWidgetsView: React.FC<CustomWidgetsViewProps> = ({
             {/* <span className="text-sm text-gray-600 dark:text-gray-400">Columns:</span> */}
             <div className="flex items-center gap-3">
               {/* <span className="text-xs text-muted-foreground w-2">5</span> */}
-              <div className="ml-2 min-w-[20px] text-center">
+              {/* <div className="ml-2 min-w-[20px] text-center">
                 <span className="text-sm font-medium text-foreground bg-muted px-2 py-1 rounded">
                   {columns}
                 </span>
-              </div>
+              </div> */}
               {/* <span className="text-xs text-muted-foreground w-2">1</span> */}
               <Slider
                 value={[columns]}

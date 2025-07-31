@@ -175,15 +175,16 @@ export const modes = {
     body: JSON.stringify({ mode })
   }),
   standard: () => fetch(`${API}/api/modes/standard/normal`, { method: 'POST' }),
-  focus: (focusType) => fetch(`${API}/api/modes/focus/${focusType}`, { method: 'POST' }),
   kids: () => fetch(`${API}/api/modes/kids`, { method: 'POST' }),
-  getSettings: (modeKey) => fetch(`${API}/api/modes/settings/${modeKey}`).then(r => r.json()),
+  focus: (focusType) => fetch(`${API}/api/modes/focus/${focusType}`, { method: 'POST' }),
+  listModes: () => fetch(`${API}/api/modes/modes`).then(r => r.json()),
+  focusModes: () => fetch(`${API}/api/modes/modes`).then(r => r.json()),
+  getSettings: (modeKey) => fetch(`${API}/api/modes/settings/${modeKey}`).then(r => r.json()), // mode_key = "standard_focus_deep"  or kids or standard_normal
   updateSetting: (modeKey, setting, value) => fetch(`${API}/api/modes/settings/${modeKey}/${setting}`, { 
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ value })
   }),
-  listModes: () => fetch(`${API}/api/modes/modes`).then(r => r.json()),
   startTimer: (duration) => fetch(`${API}/api/modes/timer/start`, { 
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

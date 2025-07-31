@@ -1,645 +1,477 @@
-# Dashboard Component Split
 
-Here's how I'll split the Dashboard.tsx file into smaller, more manageable components:
+import React, { useState } from 'react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Badge } from '@/components/ui/badge';
+import { Play, Pause, Square, Settings, Plus, Trash2, Edit } from 'lucide-react';
 
-## 1. Main Dashboard Component (Dashboard.tsx)
-```typescript
-import React, { useState, useEffect } from 'react';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useMonitoring } from '@/hooks/useMonitoring';
-import { useProductivitySettings } from '@/hooks/useProductivitySettings';
-import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
-import { useNavigate } from 'react-router-dom';
-import { modes } from '@/lib/tracker_api';
-
-import TopBar from './components/TopBar';
-import Sidebar from './components/Sidebar';
-import MainContent from './components/MainContent';
-import BreakReminder from '@/components/BreakReminder';
-import PasscodeModal from '@/components/PasscodeModal';
-import { useBreakReminder } from './hooks/useBreakReminder';
-import { useWidgetManager } from './hooks/useWidgetManager';
-import { useModeManager } from './hooks/useModeManager';
-import { navigationTabs } from './config/navigationConfig';
-
-interface DashboardProps {
-  onOpenSettings: () => void;
+interface FocusRule {
+  id: string;
+  name: string;
+  duration: number;
+  blockedApps: string[];
+  strictMode: boolean;
 }
 
-const Dashboard: React.FC<DashboardProps> = ({ onOpenSettings }) => {
-  const [activeTab, setActiveTab] = useState('overview');
-  const [activeSubTab, setActiveSubTab] = useState('today');
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  
-  const { theme, toggleTheme } = useTheme();
-  const { isMonitoring, currentApp, startMonitoring, stopMonitoring } = useMonitoring();
-  const { goals, blockedSites, breakReminders, updateGoal, toggleSiteBlock, addBlockedSite, setBreakReminders } = useProductivitySettings();
-  const navigate = useNavigate();
+const FocusMode = () => {
+  const [isRunning, setIsRunning] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  const [selectedRule, setSelectedRule] = useState('deep-work');
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<FocusRule | null>(null);
+  const [newRuleName, setNewRuleName] = useState('');
+  const [newRuleDuration, setNewRuleDuration] = useState(25);
+  const [newRuleApps, setNewRuleApps] = useState('');
+  const [newRuleStrict, setNewRuleStrict] = useState(false);
 
-  // Custom hooks for complex logic
-  const { showBreakReminder, handleTakeBreak, handleDismissBreak } = useBreakReminder(breakReminders, isMonitoring, setBreakReminders);
-  const { customWidgets, addCustomWidget, removeCustomWidget } = useWidgetManager();
-  const { isKidsMode, showPasscodeModal, handleModeSwitch, handlePasscodeSuccess, setShowPasscodeModal } = useModeManager();
-
-  const handleToggleMonitoring = () => {
-    if (isMonitoring) {
-      stopMonitoring();
-    } else {
-      startMonitoring();
+  // All available focus rules
+  const [allFocusRules, setAllFocusRules] = useState<Record<string, FocusRule>>({
+    'deep-work': {
+      id: 'deep-work',
+      name: 'Deep Work',
+      duration: 90,
+      blockedApps: ['YouTube', 'Facebook', 'Twitter', 'Instagram', 'TikTok'],
+      strictMode: true
+    },
+    'light-focus': {
+      id: 'light-focus',
+      name: 'Light Focus',
+      duration: 45,
+      blockedApps: ['YouTube', 'Facebook', 'TikTok'],
+      strictMode: false
+    },
+    'meeting-mode': {
+      id: 'meeting-mode',
+      name: 'Meeting Mode',
+      duration: 60,
+      blockedApps: ['YouTube', 'Games', 'Social Media'],
+      strictMode: false
+    },
+    'study-mode': {
+      id: 'study-mode',
+      name: 'Study Mode',
+      duration: 120,
+      blockedApps: ['YouTube', 'Facebook', 'Twitter', 'Instagram', 'TikTok', 'Games'],
+      strictMode: true
+    },
+    'writing-mode': {
+      id: 'writing-mode',
+      name: 'Writing Mode',
+      duration: 60,
+      blockedApps: ['YouTube', 'Social Media', 'News'],
+      strictMode: false
     }
-  };
+  });
 
-  const handleTabClick = (tabId: string) => {
-    if (isKidsMode && tabId !== 'kids') return;
-    
-    if (tabId === 'settings') {
-      onOpenSettings();
-      return;
-    }
-    
-    setActiveTab(tabId);
-    const selectedTab = navigationTabs.find(tab => tab.id === tabId);
-    if (selectedTab?.subTabs && selectedTab.subTabs.length > 0) {
-      setActiveSubTab(selectedTab.subTabs[0].id);
-    }
-  };
-
-  // Auto-navigate to kids mode when enabling
-  useEffect(() => {
-    if (isKidsMode) {
-      setActiveTab('kids');
-      setActiveSubTab('kids-mode');
-    }
-  }, [isKidsMode]);
-
-  // Keyboard shortcuts
-  useKeyboardShortcuts([
-    { key: 'm', ctrl: true, action: handleToggleMonitoring, description: 'Toggle monitoring' },
-    { key: 's', ctrl: true, action: onOpenSettings, description: 'Open settings' },
-    { key: 't', ctrl: true, action: toggleTheme, description: 'Toggle theme' },
-    { key: '1', ctrl: true, action: () => { setActiveTab('overview'); setActiveSubTab('today'); }, description: 'Go to Overview' },
-    { key: '2', ctrl: true, action: () => { setActiveTab('focus'); setActiveSubTab('focus-mode'); }, description: 'Go to Focus Mode' },
-    { key: 'k', ctrl: true, action: () => handleModeSwitch(), description: 'Toggle Kids Mode' }
+  // Selected rules to show (only 3)
+  const [selectedRulesForDisplay, setSelectedRulesForDisplay] = useState<string[]>([
+    'deep-work', 'light-focus', 'meeting-mode'
   ]);
 
+  // Get the displayed rules
+  const displayedRules = selectedRulesForDisplay.reduce((acc, key) => {
+    if (allFocusRules[key]) {
+      acc[key] = allFocusRules[key];
+    }
+    return acc;
+  }, {} as Record<string, FocusRule>);
+
+  const currentRule = allFocusRules[selectedRule];
+  const progress = ((25 * 60 - timeLeft) / (25 * 60)) * 100;
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleAddRule = () => {
+    if (!newRuleName.trim()) return;
+    
+    const id = newRuleName.toLowerCase().replace(/\s+/g, '-');
+    const apps = newRuleApps.split(',').map(app => app.trim()).filter(app => app);
+    
+    setAllFocusRules(prev => ({
+      ...prev,
+      [id]: {
+        id,
+        name: newRuleName,
+        duration: newRuleDuration,
+        blockedApps: apps,
+        strictMode: newRuleStrict
+      }
+    }));
+    
+    // Reset form
+    setNewRuleName('');
+    setNewRuleDuration(25);
+    setNewRuleApps('');
+    setNewRuleStrict(false);
+  };
+
+  const handleDeleteRule = (ruleId: string) => {
+    setAllFocusRules(prev => {
+      const newRules = { ...prev };
+      delete newRules[ruleId];
+      return newRules;
+    });
+    
+    // Remove from selected display if it was selected
+    setSelectedRulesForDisplay(prev => prev.filter(id => id !== ruleId));
+    
+    // Change selected rule if it was deleted
+    if (selectedRule === ruleId) {
+      const remainingKeys = Object.keys(allFocusRules).filter(key => key !== ruleId);
+      setSelectedRule(remainingKeys[0] || '');
+    }
+  };
+
+  const handleEditRule = (rule: FocusRule) => {
+    setEditingRule(rule);
+    setNewRuleName(rule.name);
+    setNewRuleDuration(rule.duration);
+    setNewRuleApps(rule.blockedApps.join(', '));
+    setNewRuleStrict(rule.strictMode);
+  };
+
+  const handleUpdateRule = () => {
+    if (!editingRule || !newRuleName.trim()) return;
+    
+    const apps = newRuleApps.split(',').map(app => app.trim()).filter(app => app);
+    
+    setAllFocusRules(prev => ({
+      ...prev,
+      [editingRule.id]: {
+        ...editingRule,
+        name: newRuleName,
+        duration: newRuleDuration,
+        blockedApps: apps,
+        strictMode: newRuleStrict
+      }
+    }));
+    
+    setEditingRule(null);
+    setNewRuleName('');
+    setNewRuleDuration(25); 
+    setNewRuleApps('');
+    setNewRuleStrict(false);
+  };
+
+  const toggleRuleForDisplay = (ruleId: string) => {
+    setSelectedRulesForDisplay(prev => {
+      if (prev.includes(ruleId)) {
+        return prev.filter(id => id !== ruleId);
+      } else if (prev.length < 3) {
+        return [...prev, ruleId];
+      }
+      return prev;
+    });
+  };
+
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {showBreakReminder && (
-        <BreakReminder onDismiss={handleDismissBreak} onTakeBreak={handleTakeBreak} />
-      )}
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Focus Mode</h2>
+        <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+          <DialogTrigger asChild>
+            <Button variant="outline" size="sm">
+              <Settings className="h-4 w-4 mr-2" />
+              Configure
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Configure Focus Rules</DialogTitle>
+            </DialogHeader>
+            
+            <div className="space-y-6">
+              {/* Add/Edit Rule Form */}
+              <div className="border border-border rounded-lg p-4">
+                <h4 className="font-medium mb-4">{editingRule ? 'Edit Rule' : 'Add New Rule'}</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="rule-name">Rule Name</Label>
+                    <Input
+                      id="rule-name"
+                      value={newRuleName}
+                      onChange={(e) => setNewRuleName(e.target.value)}
+                      placeholder="e.g., Deep Work"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="rule-duration">Duration (minutes)</Label>
+                    <Input
+                      id="rule-duration"
+                      type="number"
+                      value={newRuleDuration}
+                      onChange={(e) => setNewRuleDuration(Number(e.target.value))}
+                      placeholder="25"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <Label htmlFor="rule-apps">Blocked Apps (comma-separated)</Label>
+                    <Input
+                      id="rule-apps"
+                      value={newRuleApps}
+                      onChange={(e) => setNewRuleApps(e.target.value)}
+                      placeholder="YouTube, Facebook, Twitter"
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="rule-strict"
+                      type="checkbox"
+                      checked={newRuleStrict}
+                      onChange={(e) => setNewRuleStrict(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <Label htmlFor="rule-strict">Strict Mode</Label>
+                  </div>
+                </div>
+                <div className="flex space-x-2 mt-4">
+                  {editingRule ? (
+                    <>
+                      <Button onClick={handleUpdateRule}>Update Rule</Button>
+                      <Button variant="outline" onClick={() => {
+                        setEditingRule(null);
+                        setNewRuleName('');
+                        setNewRuleDuration(25);
+                        setNewRuleApps('');
+                        setNewRuleStrict(false);
+                      }}>Cancel</Button>
+                    </>
+                  ) : (
+                    <Button onClick={handleAddRule}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Rule
+                    </Button>
+                  )}
+                </div>
+              </div>
 
-      <TopBar
-        isKidsMode={isKidsMode}
-        onModeSwitch={handleModeSwitch}
-        sidebarCollapsed={sidebarCollapsed}
-        onToggleSidebar={() => setSidebarCollapsed(!sidebarCollapsed)}
-        isMonitoring={isMonitoring}
-        currentApp={currentApp}
-        onToggleMonitoring={handleToggleMonitoring}
-        onNavigateToProfile={() => navigate('/profile')}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
-
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          collapsed={sidebarCollapsed}
-          activeTab={activeTab}
-          activeSubTab={activeSubTab}
-          isKidsMode={isKidsMode}
-          onTabClick={handleTabClick}
-          onSubTabClick={setActiveSubTab}
-          tabs={navigationTabs}
-        />
-
-        <MainContent
-          activeSubTab={activeSubTab}
-          goals={goals}
-          onUpdateGoal={updateGoal}
-          blockedSites={blockedSites}
-          onToggleSite={toggleSiteBlock}
-          onAddSite={addBlockedSite}
-          customWidgets={customWidgets}
-          onAddWidget={addCustomWidget}
-          onRemoveWidget={removeCustomWidget}
-        />
+              {/* All Rules List */}
+              <div>
+                <h4 className="font-medium mb-4">All Focus Rules</h4>
+                <div className="space-y-2">
+                  {Object.entries(allFocusRules).map(([key, rule]) => (
+                    <div key={key} className="flex items-center justify-between p-3 border border-border rounded-lg">
+                      <div className="flex items-center space-x-3">
+                        <input
+                          type="checkbox"
+                          checked={selectedRulesForDisplay.includes(key)}
+                          onChange={() => toggleRuleForDisplay(key)}
+                          disabled={!selectedRulesForDisplay.includes(key) && selectedRulesForDisplay.length >= 3}
+                          className="h-4 w-4"
+                        />
+                        <div>
+                          <div className="font-medium">{rule.name}</div>
+                          <div className="text-sm text-muted-foreground">
+                            {rule.duration}min • {rule.blockedApps.length} apps blocked • {rule.strictMode ? 'Strict' : 'Flexible'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditRule(rule)}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteRule(key)}
+                          className="text-red-600 hover:text-red-700"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-sm text-muted-foreground mt-2">
+                  Select up to 3 rules to display in the main interface. Currently selected: {selectedRulesForDisplay.length}/3
+                </p>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
-      <PasscodeModal
-        isOpen={showPasscodeModal}
-        onClose={() => setShowPasscodeModal(false)}
-        onSuccess={handlePasscodeSuccess}
-      />
-    </div>
-  );
-};
-
-export default Dashboard;
-```
-
-## 2. TopBar Component (components/TopBar.tsx)
-```typescript
-import React from 'react';
-import { Menu, Play, Square, User, Moon, Sun } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-
-interface TopBarProps {
-  isKidsMode: boolean;
-  onModeSwitch: () => void;
-  sidebarCollapsed: boolean;
-  onToggleSidebar: () => void;
-  isMonitoring: boolean;
-  currentApp: string;
-  onToggleMonitoring: () => void;
-  onNavigateToProfile: () => void;
-  theme: string;
-  onToggleTheme: () => void;
-}
-
-const TopBar: React.FC<TopBarProps> = ({
-  isKidsMode,
-  onModeSwitch,
-  sidebarCollapsed,
-  onToggleSidebar,
-  isMonitoring,
-  currentApp,
-  onToggleMonitoring,
-  onNavigateToProfile,
-  theme,
-  onToggleTheme,
-}) => {
-  return (
-    <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={onToggleSidebar}
-          title={sidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-        >
-          <Menu className="h-4 w-4" />
-        </Button>
-        <h1 className="text-xl font-bold text-primary">FocusAi Tracker</h1>
-        <div className="flex items-center space-x-2">
-          <span className="text-sm text-muted-foreground">Mode:</span>
+      {/* Timer Display */}
+      <Card className="p-8 text-center">
+        <div className="mb-6">
+          <div className="text-6xl font-mono font-bold mb-2">{formatTime(timeLeft)}</div>
+          <div className="text-muted-foreground">Focus Session</div>
+        </div>
+        
+        <Progress value={progress} className="h-2 mb-6" />
+        
+        <div className="flex justify-center space-x-2">
           <Button
-            variant={isKidsMode ? "default" : "outline"}
-            size="sm"
-            onClick={onModeSwitch}
-            className="text-xs"
+            onClick={() => setIsRunning(!isRunning)}
+            className="min-w-[100px]"
           >
-            {isKidsMode ? 'Kids' : 'Standard'}
+            {isRunning ? <Pause className="h-4 w-4 mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+            {isRunning ? 'Pause' : 'Start'}
+          </Button>
+          <Button variant="outline">
+            <Square className="h-4 w-4 mr-2" />
+            Stop
           </Button>
         </div>
-      </div>
+      </Card>
 
-      <div className="flex items-center space-x-4">
-        <div className="flex items-center space-x-2 px-3 py-1 bg-accent rounded-lg">
-          <div className={`w-2 h-2 rounded-full animate-pulse ${isMonitoring ? 'bg-green-500' : 'bg-gray-400'}`}></div>
-          <span className="text-sm font-medium">
-            {isMonitoring ? `Current: ${currentApp}` : 'Not Monitoring'}
-          </span>
-        </div>
-
-        <Button
-          variant={isMonitoring ? "destructive" : "default"}
-          size="sm"
-          onClick={onToggleMonitoring}
-          className="flex items-center space-x-2"
-        >
-          {isMonitoring ? (
-            <>
-              <Square className="h-4 w-4" />
-              <span>Stop</span>
-            </>
-          ) : (
-            <>
-              <Play className="h-4 w-4" />
-              <span>Start Monitoring</span>
-            </>
-          )}
-        </Button>
-
-        <Button variant="ghost" size="sm" onClick={onNavigateToProfile}>
-          <User className="h-4 w-4" />
-        </Button>
-        <Button variant="ghost" size="sm" onClick={onToggleTheme}>
-          {theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
-        </Button>
-      </div>
-    </div>
-  );
-};
-
-export default TopBar;
-```
-
-## 3. Sidebar Component (components/Sidebar.tsx)
-```typescript
-import React from 'react';
-import { NavigationTab } from '../types/navigationTypes';
-
-interface SidebarProps {
-  collapsed: boolean;
-  activeTab: string;
-  activeSubTab: string;
-  isKidsMode: boolean;
-  onTabClick: (tabId: string) => void;
-  onSubTabClick: (subTabId: string) => void;
-  tabs: NavigationTab[];
-}
-
-const Sidebar: React.FC<SidebarProps> = ({
-  collapsed,
-  activeTab,
-  activeSubTab,
-  isKidsMode,
-  onTabClick,
-  onSubTabClick,
-  tabs,
-}) => {
-  const getCurrentTabSubTabs = () => {
-    const currentTab = tabs.find(tab => tab.id === activeTab);
-    return currentTab?.subTabs || [];
-  };
-
-  return (
-    <div className={`${collapsed ? 'w-16' : 'w-64'} transition-all duration-300 bg-card border-r border-border flex flex-col`}>
-      <div className="p-4">
-        <nav className="space-y-2">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => onTabClick(tab.id)}
-              disabled={isKidsMode && tab.id !== 'kids'}
-              className={`w-full flex items-center ${collapsed ? 'justify-center px-2' : 'space-x-3 px-3'} py-2 rounded-lg text-left transition-colors ${
-                activeTab === tab.id && tab.id !== 'settings'
-                  ? 'bg-primary text-primary-foreground'
-                  : isKidsMode && tab.id !== 'kids'
-                  ? 'text-muted-foreground/50 cursor-not-allowed'
-                  : 'text-muted-foreground hover:bg-accent hover:text-accent-foreground'
+      {/* Focus Rules */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Focus Rules</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          {Object.entries(displayedRules).map(([key, rule]) => (
+            <div
+              key={key}
+              onClick={() => setSelectedRule(key)}
+              className={`p-4 rounded-lg border-2 cursor-pointer transition-colors ${
+                selectedRule === key
+                  ? 'border-primary bg-primary/10'
+                  : 'border-border hover:border-primary/50'
               }`}
-              title={collapsed ? tab.label : ''}
             >
-              <tab.icon className="h-4 w-4 flex-shrink-0" />
-              {!collapsed && <span>{tab.label}</span>}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {!collapsed && getCurrentTabSubTabs().length > 0 && (
-        <div className="flex-1 px-4 pb-4">
-          <div className="pt-2 border-t border-border">
-            <div className="space-y-1">
-              {getCurrentTabSubTabs().map((subTab) => (
-                <button
-                  key={subTab.id}
-                  onClick={() => onSubTabClick(subTab.id)}
-                  disabled={isKidsMode && activeTab !== 'kids'}
-                  className={`w-full text-left px-3 py-1.5 text-sm rounded transition-colors ${
-                    activeSubTab === subTab.id
-                      ? 'bg-accent text-accent-foreground'
-                      : isKidsMode && activeTab !== 'kids'
-                      ? 'text-muted-foreground/50 cursor-not-allowed'
-                      : 'text-muted-foreground hover:bg-accent/50 hover:text-accent-foreground'
-                  }`}
-                >
-                  {subTab.label}
-                </button>
-              ))}
+              <div className="font-medium">{rule.name}</div>
+              <div className="text-sm text-muted-foreground">{rule.duration}min session</div>
+              <div className="text-xs mt-1">
+                {rule.strictMode ? '🔒 Strict Mode' : '⚡ Flexible'}
+              </div>
             </div>
-          </div>
+          ))}
         </div>
-      )}
+      </Card>
+
+      {/* Currently Blocked */}
+      <Card className="p-6">
+        <h3 className="text-lg font-semibold mb-4">Currently Blocked Applications</h3>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+          {currentRule?.blockedApps.map((app, index) => (
+            <div key={index} className="flex items-center space-x-2 p-2 bg-red-50 dark:bg-red-950 rounded">
+              <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+              <span className="text-sm">{app}</span>
+            </div>
+          )) || <div className="text-muted-foreground">No rule selected</div>}
+        </div>
+      </Card>
+
+      {/* Session Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Today's Sessions</div>
+          <div className="text-2xl font-bold">4</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Total Focus Time</div>
+          <div className="text-2xl font-bold">3h 45m</div>
+        </Card>
+        <Card className="p-4">
+          <div className="text-sm text-muted-foreground">Longest Streak</div>
+          <div className="text-2xl font-bold">1h 52m</div>
+        </Card>
+      </div>
     </div>
   );
 };
 
-export default Sidebar;
-```
+export default FocusMode;
 
-## 4. MainContent Component (components/MainContent.tsx)
-```typescript
-import React from 'react';
-import TodaySummary from '@/components/TodaySummary';
-import Timeline from '@/components/Timeline';
-import Reports from '@/components/Reports';
-import FocusMode from '@/components/FocusMode';
-import ProductivityGoals from '@/components/ProductivityGoals';
-import WebsiteBlocker from '@/components/WebsiteBlocker';
-import AppManagement from '@/components/AppManagement';
-import KidsMode from '@/components/KidsMode';
-import KidsRewards from '@/components/KidsRewards';
-import CustomWidgetsView from './CustomWidgetsView';
-import { Widget } from '../types/widgetTypes';
+--
+the session (Focus Session) time left , if i select like deep work it's change to this new duration (if i click play , i can change nothing) till the time ==0 or i stop the session , and (i have some api to work with them) 
+--
+focus: (focusType) => fetch(`${API}/api/modes/focus/${focusType}`, { method: 'POST' }),
+  getSettings: (modeKey) => fetch(`${API}/api/modes/settings/${modeKey}`).then(r => r.json()),
+  updateSetting: (modeKey, setting, value) => fetch(`${API}/api/modes/settings/${modeKey}/${setting}`, { 
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ value })
+  }),
+  listModes: () => fetch(`${API}/api/modes/modes`).then(r => r.json()),
+  startTimer: (duration) => fetch(`${API}/api/modes/timer/start`, { 
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ duration })
+  }),
+  stopTimer: () => fetch(`${API}/api/modes/timer/stop`, { method: 'POST' }),
+  timerStatus: () => fetch(`${API}/api/modes/timer/status`).then(r => r.json()),
+--
+this in backend 
 
-interface MainContentProps {
-  activeSubTab: string;
-  goals: any;
-  onUpdateGoal: (goal: any) => void;
-  blockedSites: any;
-  onToggleSite: (site: string) => void;
-  onAddSite: (site: string) => void;
-  customWidgets: Widget[];
-  onAddWidget: (widget: Widget) => void;
-  onRemoveWidget: (id: string) => void;
-}
+@bp.route("/focus/<focus_type>", methods=["POST"])
+def focus_mode(focus_type: str):
+    ok = _controller.switch_to_focus(FocusType[focus_type.upper()])
+    return jsonify({"success": ok})
+# ------------------------------------------------------------------
+# Settings retrieval & update
+# ------------------------------------------------------------------
+@bp.route("/settings/<mode_key>", methods=["GET"])
+def get_settings(mode_key: str):
+    settings = _controller.settings_manager.get_mode_setting(mode_key)
+    if not settings:
+        return jsonify({"error": "not found"}), 404
+    return jsonify(settings.__dict__)
 
-const MainContent: React.FC<MainContentProps> = ({
-  activeSubTab,
-  goals,
-  onUpdateGoal,
-  blockedSites,
-  onToggleSite,
-  onAddSite,
-  customWidgets,
-  onAddWidget,
-  onRemoveWidget,
-}) => {
-  const renderContent = () => {
-    switch (activeSubTab) {
-      case 'today':
-        return <TodaySummary />;
-      case 'timeline':
-        return <Timeline />;
-      case 'reports':
-        return <Reports />;
-      case 'widgets':
-        return (
-          <CustomWidgetsView
-            customWidgets={customWidgets}
-            onAddWidget={onAddWidget}
-            onRemoveWidget={onRemoveWidget}
-          />
-        );
-      case 'focus-mode':
-        return <FocusMode />;
-      case 'goals':
-        return <ProductivityGoals goals={goals} onUpdateGoal={onUpdateGoal} />;
-      case 'blocker':
-        return <WebsiteBlocker blockedSites={blockedSites} onToggleSite={onToggleSite} onAddSite={onAddSite} />;
-      case 'apps':
-        return <AppManagement />;
-      case 'kids-mode':
-        return <KidsMode />;
-      case 'rewards':
-        return <KidsRewards />;
-      default:
-        return <TodaySummary />;
-    }
-  };
+@bp.route("/settings/<mode_key>/<setting>", methods=["PUT"])
+def update_setting(mode_key: str, setting: str):
+    body = request.get_json(force=True)
+    new_value = body["value"]
+    try:
+        _controller.settings_manager.update_mode_setting(mode_key, setting, new_value)
+        return jsonify({"message": "updated"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
-  return (
-    <div className="flex-1 p-6 overflow-auto">
-      {renderContent()}
-    </div>
-  );
-};
+# ------------------------------------------------------------------
+# Available modes
+# ------------------------------------------------------------------
+@bp.route("/modes", methods=["GET"])
+def list_modes():
+    return jsonify(_controller.settings_manager.list_available_modes())
 
-export default MainContent;
-```
 
-## 5. Custom Hooks
+# ------------------------------------------------------------------
+# Timer (kids-mode time-limit) endpoints
+# ------------------------------------------------------------------
+@bp.route("/timer/start", methods=["POST"])
+def start_timer():
+    """Start kids-mode timer via REST."""
+    body = request.get_json(force=True)
+    mins   = float(body.get("minutes", 60))
+    action = body.get("action", "sleep")
+    warn   = body.get("warning", False)
+    grace  = float(body.get("grace_seconds", 10))
 
-### useBreakReminder Hook (hooks/useBreakReminder.ts)
-```typescript
-import { useState, useEffect } from 'react';
+    import threading
+    threading.Thread(
+        target=_controller.device_controller._checking_loop,
+        args=(mins, action, warn, grace),
+        daemon=True
+    ).start()
+    return jsonify({"message": f"Timer started for {mins} min"})
 
-export const useBreakReminder = (breakReminders: any, isMonitoring: boolean, setBreakReminders: any) => {
-  const [showBreakReminder, setShowBreakReminder] = useState(false);
+@bp.route("/timer/stop", methods=["POST"])
+def stop_timer():
+    _controller.device_controller.stop()
+    return jsonify({"message": "Timer stopped"})
 
-  useEffect(() => {
-    if (breakReminders.enabled && isMonitoring) {
-      const checkBreakTime = () => {
-        const timeSinceLastBreak = Date.now() - breakReminders.lastBreak;
-        const shouldShowBreak = timeSinceLastBreak >= breakReminders.interval * 60 * 1000;
-        
-        if (shouldShowBreak) {
-          setShowBreakReminder(true);
-        }
-      };
+@bp.route("/timer/status", methods=["GET"])
+def timer_status():
+    dc = _controller.device_controller
+    return jsonify({
+        "is_timing": dc.is_timing,
+        "elapsed_seconds": dc.elapsed(),
+        "time_limit": dc.time_limit,
+        "action": dc.action,
+        "warning": dc.is_warning
+    })
 
-      const interval = setInterval(checkBreakTime, 60000);
-      return () => clearInterval(interval);
-    }
-  }, [breakReminders, isMonitoring]);
-
-  const handleTakeBreak = () => {
-    setShowBreakReminder(false);
-    setBreakReminders({
-      ...breakReminders,
-      lastBreak: Date.now()
-    });
-  };
-
-  const handleDismissBreak = () => {
-    setShowBreakReminder(false);
-    setBreakReminders({
-      ...breakReminders,
-      lastBreak: Date.now() - (breakReminders.interval * 60 * 1000) + (5 * 60 * 1000)
-    });
-  };
-
-  return {
-    showBreakReminder,
-    handleTakeBreak,
-    handleDismissBreak
-  };
-};
-```
-
-### useWidgetManager Hook (hooks/useWidgetManager.ts)
-```typescript
-import { useState, useEffect } from 'react';
-import { Widget } from '../types/widgetTypes';
-import { availableWidgets } from '../config/widgetConfig';
-
-export const useWidgetManager = () => {
-  const [customWidgets, setCustomWidgets] = useState<Widget[]>([]);
-
-  useEffect(() => {
-    const savedWidgets = localStorage.getItem('custom-widgets');
-    if (savedWidgets) {
-      const parsedWidgets = JSON.parse(savedWidgets);
-      const mappedWidgets = parsedWidgets.map((saved: any) => {
-        const availableWidget = availableWidgets.find(w => w.type === saved.type);
-        return availableWidget ? { ...saved, component: availableWidget.component } : null;
-      }).filter(Boolean);
-      setCustomWidgets(mappedWidgets);
-    }
-  }, []);
-
-  const saveCustomWidgets = (widgets: Widget[]) => {
-    const widgetsToSave = widgets.map(({ component, ...rest }) => rest);
-    localStorage.setItem('custom-widgets', JSON.stringify(widgetsToSave));
-    setCustomWidgets(widgets);
-  };
-
-  const addCustomWidget = (widget: Widget) => {
-    const newWidget = { ...widget, id: `${widget.type}-${Date.now()}` };
-    const updatedWidgets = [...customWidgets, newWidget];
-    saveCustomWidgets(updatedWidgets);
-  };
-
-  const removeCustomWidget = (id: string) => {
-    const updatedWidgets = customWidgets.filter(w => w.id !== id);
-    saveCustomWidgets(updatedWidgets);
-  };
-
-  return {
-    customWidgets,
-    addCustomWidget,
-    removeCustomWidget
-  };
-};
-```
-
-### useModeManager Hook (hooks/useModeManager.ts)
-```typescript
-import { useState } from 'react';
-import { modes } from '@/lib/tracker_api';
-
-export const useModeManager = () => {
-  const [isKidsMode, setIsKidsMode] = useState(false);
-  const [showPasscodeModal, setShowPasscodeModal] = useState(false);
-
-  const handleModeSwitch = async () => {
-    if (isKidsMode) {
-      setShowPasscodeModal(true);
-    } else {
-      await modes.kids();
-      setIsKidsMode(true);
-    }
-  };
-
-  const handlePasscodeSuccess = async () => {
-    await modes.standard();
-    setIsKidsMode(false);
-    setShowPasscodeModal(false);
-  };
-
-  return {
-    isKidsMode,
-    showPasscodeModal,
-    handleModeSwitch,
-    handlePasscodeSuccess,
-    setShowPasscodeModal
-  };
-};
-```
-
-## 6. Configuration Files
-
-### Navigation Config (config/navigationConfig.ts)
-```typescript
-import { BarChart3, Target, Globe, Shield, Settings } from 'lucide-react';
-import { NavigationTab } from '../types/navigationTypes';
-
-export const navigationTabs: NavigationTab[] = [
-  { 
-    id: 'overview', 
-    label: 'Overview', 
-    icon: BarChart3,
-    subTabs: [
-      { id: 'today', label: "Today's Summary" },
-      { id: 'timeline', label: 'Timeline' },
-      { id: 'reports', label: 'Reports' },
-      { id: 'widgets', label: 'Custom Widgets' }
-    ]
-  },
-  { 
-    id: 'focus', 
-    label: 'Focus & Goals', 
-    icon: Target,
-    subTabs: [
-      { id: 'focus-mode', label: 'Focus Mode' },
-      { id: 'goals', label: 'Goals' }
-    ]
-  },
-  { 
-    id: 'monitoring', 
-    label: 'Monitoring', 
-    icon: Globe,
-    subTabs: [
-      { id: 'blocker', label: 'Website Blocker' },
-      { id: 'apps', label: 'App Management' }
-    ]
-  },
-  { 
-    id: 'kids', 
-    label: 'Kids Mode', 
-    icon: Shield,
-    subTabs: [
-      { id: 'kids-mode', label: 'Kids Mode' },
-      { id: 'rewards', label: 'Kids Rewards' }
-    ]
-  },
-  { 
-    id: 'settings', 
-    label: 'Settings', 
-    icon: Settings,
-    subTabs: []
-  }
-];
-```
-
-### Widget Config (config/widgetConfig.ts)
-```typescript
-// Import all widget components
-import PomodoroWidget from '@/components/PomodoroWidget';
-import QuickNotesWidget from '@/components/QuickNotesWidget';
-// ... other imports
-
-import { Widget } from '../types/widgetTypes';
-
-export const availableWidgets: Widget[] = [
-  { id: 'pomodoro', type: 'pomodoro', title: 'Pomodoro Timer', component: PomodoroWidget, size: 'medium' },
-  { id: 'quick-notes', type: 'quick-notes', title: 'Quick Notes', component: QuickNotesWidget, size: 'medium' },
-  // ... rest of the widgets
-];
-```
-
-## 7. Type Definitions
-
-### Navigation Types (types/navigationTypes.ts)
-```typescript
-import { LucideIcon } from 'lucide-react';
-
-export interface SubTab {
-  id: string;
-  label: string;
-}
-
-export interface NavigationTab {
-  id: string;
-  label: string;
-  icon: LucideIcon;
-  subTabs: SubTab[];
-}
-```
-
-### Widget Types (types/widgetTypes.ts)
-```typescript
-import React from 'react';
-
-export interface Widget {
-  id: string;
-  type: string;
-  title: string;
-  component: React.ComponentType<any>;
-  size: 'small' | 'medium' | 'large';
-}
-```
-
-## Benefits of This Split:
-
-1. **Separation of Concerns**: Each component has a single responsibility
-2. **Reusability**: Components can be reused in other parts of the app
-3. **Maintainability**: Easier to find and fix bugs in specific functionality
-4. **Testability**: Smaller components are easier to unit test
-5. **Performance**: Components can be lazy-loaded if needed
-6. **Readability**: Much easier to understand and navigate the codebase
-7. **Team Development**: Multiple developers can work on different components simultaneously
-
-This structure makes the codebase much more manageable and follows React best practices for component composition and separation of concerns.
+--  
