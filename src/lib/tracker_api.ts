@@ -107,18 +107,6 @@ export const config = {
   listUrls: () => fetch(`${API}/api/config/urls`).then(r => r.json()),
 };
 
-export const analytics = {
-  appTime: () => fetch(`${API}/api/analytics/app-time`).then(r => r.json()),
-  windowTypeTime: () => fetch(`${API}/api/analytics/window-type-time`).then(r => r.json()),
-  topWindows: () => fetch(`${API}/api/analytics/top-windows`).then(r => r.json()),
-  productivitySummary: () => fetch(`${API}/api/analytics/productivity-summary`).then(r => r.json()),
-  productiveApps: () => fetch(`${API}/api/analytics/productive-apps`).then(r => r.json()),
-  distractingApps: () => fetch(`${API}/api/analytics/distracting-apps`).then(r => r.json()),
-  dailySummary: () => fetch(`${API}/api/analytics/daily-summary`).then(r => r.json()),
-  weeklySummary: () => fetch(`${API}/api/analytics/weekly-summary`).then(r => r.json()),
-  monthlySummary: () => fetch(`${API}/api/analytics/monthly-summary`).then(r => r.json()),
-};
-
 export const history = {
   raw: () => fetch(`${API}/api/history/raw`).then(r => r.json()),
   sessions: () => fetch(`${API}/api/history/sessions`).then(r => r.json()),
@@ -129,6 +117,71 @@ export const history = {
   monthly: () => fetch(`${API}/api/history/monthly`).then(r => r.json()),
   cleanup: () => fetch(`${API}/api/history/cleanup`, { method: 'POST' }),
   meta: () => fetch(`${API}/api/history/meta`).then(r => r.json()),
+  list_productive: () => fetch(`${API}/api/history/rankings/productive`).then(r => r.json()),
+  list_distractive: () => fetch(`${API}/api/history/rankings/distracting`).then(r => r.json()),
+};
+
+export const analytics = {
+  appTime: (hours) => {
+    const url = new URL(`${API}/api/analytics/app-time`);
+    if (hours !== undefined) {
+      url.searchParams.append('hours', hours);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  windowTypeTime: () => fetch(`${API}/api/analytics/window-type-time`).then(r => r.json()),
+  topWindows: (n, hours) => {
+    const url = new URL(`${API}/api/analytics/top-windows`);
+    if (n !== undefined) {
+      url.searchParams.append('n', n);
+    }
+    if (hours !== undefined) {
+      url.searchParams.append('hours', hours);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  productivitySummary: (hours) => {
+    const url = new URL(`${API}/api/analytics/productivity-summary`);
+    if (hours !== undefined) {
+      url.searchParams.append('hours', hours);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  productiveApps: (hours) => {
+    const url = new URL(`${API}/api/analytics/productive-apps`);
+    if (hours !== undefined) {
+      url.searchParams.append('hours', hours);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  distractingApps: (hours) => {
+    const url = new URL(`${API}/api/analytics/distracting-apps`);
+    if (hours !== undefined) {
+      url.searchParams.append('hours', hours);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  dailySummary: (days) => {
+    const url = new URL(`${API}/api/analytics/daily-summary`);
+    if (days !== undefined) {
+      url.searchParams.append('days', days);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  weeklySummary: (weeks) => {
+    const url = new URL(`${API}/api/analytics/weekly-summary`);
+    if (weeks !== undefined) {
+      url.searchParams.append('weeks', weeks);
+    }
+    return fetch(url).then(r => r.json());
+  },
+  monthlySummary: (months) => {
+    const url = new URL(`${API}/api/analytics/monthly-summary`);
+    if (months !== undefined) {
+      url.searchParams.append('months', months);
+    }
+    return fetch(url).then(r => r.json());
+  },
 };
 
 export const capturer = {
