@@ -130,6 +130,8 @@ export const analytics = {
     return fetch(url).then(r => r.json());
   },
   windowTypeTime: () => fetch(`${API}/api/analytics/window-type-time`).then(r => r.json()),
+  windowsToday: () => fetch(`${API}/api/analytics/today`).then(r => r.json()),
+  windowsDay: (dateStr) => fetch(`${API}/api/analytics/day/${dateStr}`).then(r => r.json()),
   topWindows: (n, hours) => {
     const url = new URL(`${API}/api/analytics/top-windows`);
     if (n !== undefined) {

@@ -74,19 +74,19 @@ const TodaySummary = () => {
     const minutes = Math.floor((seconds % 3600) / 60);
     const sec = Math.floor((seconds % 3600) % 60);
     let text = ``;
-
+    let x = 0
     if (hours !== 0 ) {
-
+      x+=1
       text += `${hours}h`;
 
     }
     if (minutes !== 0) {
-
+      x+=1
       text += ` ${minutes}min`;
 
     }
-    if (hours === 0 || minutes === 0) {
-
+    if (x<2) {
+      x+=1
       text +=  ` ${sec}s`;
 
     }

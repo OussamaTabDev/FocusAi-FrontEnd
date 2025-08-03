@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Monitor, Cpu, HardDrive, Battery } from 'lucide-react';
+import { widgets } from '@/lib/tracker_api'
 
 const SystemStatsWidget: React.FC = () => {
   const [stats, setStats] = useState({
